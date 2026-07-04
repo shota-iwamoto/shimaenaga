@@ -87,6 +87,7 @@ setup(
     long_description=open("README.md").read() if Path("README.md").exists() else "",
     author="Shimaenaga Authors",
     license="MIT",
+    license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],
     packages=find_packages("python"),
     package_dir={"": "python"},
     ext_modules=ext_modules,
