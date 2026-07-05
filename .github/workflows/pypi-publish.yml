@@ -31,6 +31,9 @@ jobs:
           # versions change.
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "*-musllinux* *_i686 *win32"
+          # Show the real build-backend output so failures are debuggable
+          # (default verbosity swallows the actual compiler/pip error).
+          CIBW_BUILD_VERBOSITY: "1"
           # Smoke-test every wheel against the real suite right after it's
           # built, using the compiled extension inside the wheel itself.
           CIBW_TEST_REQUIRES: "pytest numpy scikit-learn pandas"
