@@ -114,8 +114,16 @@ if(SHIMAENAGA_BUILD_PYTHON)
     target_link_libraries(_shimaenaga PRIVATE shimaenaga_static)
     target_include_directories(_shimaenaga PRIVATE include src)
     # Output to python/shimaenaga/ so it can be imported directly
+    # Per-config properties too: multi-config generators (Visual Studio)
+    # otherwise append the config name, dropping the module at
+    # python/Release/_shimaenaga...pyd where setup.py can't find it.
     set_target_properties(_shimaenaga PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
+      LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/python"
+      LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/python"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
+      RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/python"
+      RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/python"
     )
     message(STATUS "pybind11 found. Python module will be built.")
   else()

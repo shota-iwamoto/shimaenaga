@@ -31,13 +31,24 @@ jobs:
           # versions change.
           CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-* cp313-*"
           CIBW_SKIP: "*-musllinux* *_i686 *win32"
+          # manylinux_2_28 (not the default manylinux2014/glibc-2.17): recent
+          # scikit-learn/scipy no longer publish manylinux2014 wheels, so the
+          # test step inside the older container tries to build scipy from
+          # source and dies on missing OpenBLAS.
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
           # Show the real build-backend output so failures are debuggable
           # (default verbosity swallows the actual compiler/pip error).
           CIBW_BUILD_VERBOSITY: "1"
           # Smoke-test every wheel against the real suite right after it's
           # built, using the compiled extension inside the wheel itself.
           CIBW_TEST_REQUIRES: "pytest numpy scikit-learn pandas"
-          CIBW_TEST_COMMAND: "pytest {project}/tests/python -q"
+          # The bare-import check runs from cibuildwheel's temp cwd, so it
+          # exercises the wheel alone. The pytest run does NOT: tests/python/
+          # conftest.py prepends {project}/python to sys.path, masking a wheel
+          # that's missing the pure-Python package.
+          CIBW_TEST_COMMAND: >-
+            python -c "import shimaenaga; assert shimaenaga._backend == 'pybind11', shimaenaga._backend" &&
+            pytest {project}/tests/python -q
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4

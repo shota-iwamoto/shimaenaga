@@ -24,14 +24,24 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         src_dir = Path(__file__).parent.absolute()
         build_dir = src_dir / "build"
-        # Start from a clean build dir. cibuildwheel builds every CPython
-        # version against the *same* copied source tree on Linux, so a
-        # CMakeCache.txt left behind by the previous interpreter would pin
-        # the wrong Python (and a now-deleted pybind11 overlay), making the
-        # reconfigure a silent no-op that never creates the _shimaenaga
-        # target ("No rule to make target _shimaenaga").
-        if build_dir.exists():
-            shutil.rmtree(build_dir)
+        # Drop stale CMake state. cibuildwheel builds every CPython version
+        # against the *same* copied source tree on Linux, so a CMakeCache.txt
+        # left behind by the previous interpreter would pin the wrong Python
+        # (and a now-deleted pybind11 overlay), making the reconfigure a
+        # silent no-op that never creates the _shimaenaga target ("No rule to
+        # make target _shimaenaga").
+        #
+        # Only CMakeCache.txt/CMakeFiles though -- NOT the whole build/ dir:
+        # setuptools' build_py has already copied the pure-Python package into
+        # build/lib.*/ by the time build_ext runs, and wiping the directory
+        # here would ship a wheel with the compiled module but no shimaenaga
+        # package inside.
+        cache = build_dir / "CMakeCache.txt"
+        if cache.exists():
+            cache.unlink()
+        cmake_files = build_dir / "CMakeFiles"
+        if cmake_files.exists():
+            shutil.rmtree(cmake_files)
         build_dir.mkdir(exist_ok=True)
 
         cmake_args = [
@@ -56,9 +66,19 @@ class CMakeBuild(build_ext):
         # built extension so bdist_wheel actually bundles it. Match the exact
         # suffix for the running interpreter -- a glob would also pick up
         # stale builds for other Python versions left over in python/.
-        built = src_dir / "python" / f"_shimaenaga{sysconfig.get_config_var('EXT_SUFFIX')}"
-        if not built.exists():
-            raise RuntimeError(f"Expected pybind11 module not found at {built}")
+        module_name = f"_shimaenaga{sysconfig.get_config_var('EXT_SUFFIX')}"
+        # python/Release|Debug fallbacks: multi-config generators (Visual
+        # Studio) may append the config name to the output directory.
+        candidates = [
+            src_dir / "python" / module_name,
+            src_dir / "python" / "Release" / module_name,
+            src_dir / "python" / "Debug" / module_name,
+        ]
+        built = next((p for p in candidates if p.exists()), None)
+        if built is None:
+            raise RuntimeError(
+                "Expected pybind11 module not found; looked in: "
+                + ", ".join(str(p) for p in candidates))
         dest = Path(self.get_ext_fullpath(ext.name))
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(built, dest)
