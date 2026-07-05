@@ -138,6 +138,9 @@ setup(
     version="1.3.0",
     description="Shimaenaga: Attentive Histogram GBDT with sample-level token attention",
     long_description=Path("README.md").read_text(encoding="utf-8") if Path("README.md").exists() else "",
+    # Without this PyPI/twine parse the Markdown README as reStructuredText
+    # and reject the upload on "syntax errors in markup".
+    long_description_content_type="text/markdown",
     author="Shimaenaga Authors",
     license="MIT",
     license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],
