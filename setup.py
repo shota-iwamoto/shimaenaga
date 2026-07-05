@@ -109,7 +109,7 @@ setup(
     name="shimaenaga",
     version="1.3.0",
     description="Shimaenaga: Attentive Histogram GBDT with sample-level token attention",
-    long_description=open("README.md").read() if Path("README.md").exists() else "",
+    long_description=Path("README.md").read_text(encoding="utf-8") if Path("README.md").exists() else "",
     author="Shimaenaga Authors",
     license="MIT",
     license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],

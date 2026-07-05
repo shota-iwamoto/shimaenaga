@@ -63,13 +63,22 @@ endif()
 # Static version for tests (no DLL export complexity)
 add_library(shimaenaga_static STATIC ${SHIMAENAGA_SOURCES})
 target_include_directories(shimaenaga_static PUBLIC include src)
+# It also gets linked into the _shimaenaga shared module (pybind11
+# extension) on Linux, where a non-PIC static lib can't be linked into a
+# shared object (ld: "relocation ... can not be used when making a shared
+# object; recompile with -fPIC").
+set_target_properties(shimaenaga_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(OpenMP_CXX_FOUND)
   target_link_libraries(shimaenaga_static PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
 # ─── Python bindings ───
 if(SHIMAENAGA_BUILD_PYTHON)
-  find_package(Python3 COMPONENTS Interpreter Development QUIET)
+  # Development.Module (headers only), not the monolithic Development
+  # component: manylinux images don't ship a linkable libpython, and
+  # extension modules shouldn't link it anyway (the interpreter that
+  # dlopens the module already provides those symbols at runtime).
+  find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
   if(Python3_FOUND)
     # Try to find pybind11 via pip install pybind11[global] or conda
     execute_process(

@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <array>
+#include <algorithm>
 #include "../../include/shimaenaga/config.h"
 #include "../../include/shimaenaga/dataset.h"
 
