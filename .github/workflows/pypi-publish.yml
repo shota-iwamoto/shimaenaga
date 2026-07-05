@@ -19,7 +19,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+        # macos-13 (the last Intel runner) is retired on GitHub Actions --
+        # jobs targeting it queue forever. macos-14 covers Apple Silicon;
+        # Intel-mac users fall back to building from the sdist.
+        os: [ubuntu-latest, windows-latest, macos-14]
 
     steps:
       - uses: actions/checkout@v4
