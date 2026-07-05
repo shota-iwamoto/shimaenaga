@@ -2,6 +2,7 @@
 import os
 import sys
 import shutil
+import sysconfig
 import subprocess
 from pathlib import Path
 from setuptools import setup, Extension, find_packages
@@ -21,16 +22,14 @@ class CMakeBuild(build_ext):
     """Build C++ extension via CMake (pybind11 path)."""
 
     def build_extension(self, ext):
-        ext_dir = Path(self.get_ext_fullpath(ext.name)).parent.absolute()
         src_dir = Path(__file__).parent.absolute()
         build_dir = src_dir / "build"
         build_dir.mkdir(exist_ok=True)
 
         cmake_args = [
-            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY={ext_dir}",
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
-            "-DTF_BUILD_TESTS=OFF",
-            "-DTF_BUILD_PYTHON=ON",
+            f"-DPython3_EXECUTABLE={sys.executable}",
+            "-DSHIMAENAGA_BUILD_TESTS=OFF",
+            "-DSHIMAENAGA_BUILD_PYTHON=ON",
             f"-DCMAKE_BUILD_TYPE={'Debug' if self.debug else 'Release'}",
         ]
 
@@ -38,9 +37,23 @@ class CMakeBuild(build_ext):
             ["cmake", str(src_dir)] + cmake_args, cwd=str(build_dir)
         )
         subprocess.check_call(
-            ["cmake", "--build", ".", "--config", "Release", "-j4"],
+            ["cmake", "--build", ".", "--target", "_shimaenaga",
+             "--config", "Release", "-j4"],
             cwd=str(build_dir),
         )
+
+        # CMakeLists.txt always drops the compiled module under python/ (so
+        # a plain `cmake --build` still leaves `import shimaenaga` working
+        # straight from the repo). Copy it to where setuptools expects the
+        # built extension so bdist_wheel actually bundles it. Match the exact
+        # suffix for the running interpreter -- a glob would also pick up
+        # stale builds for other Python versions left over in python/.
+        built = src_dir / "python" / f"_shimaenaga{sysconfig.get_config_var('EXT_SUFFIX')}"
+        if not built.exists():
+            raise RuntimeError(f"Expected pybind11 module not found at {built}")
+        dest = Path(self.get_ext_fullpath(ext.name))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(built, dest)
 
 
 class CMakeBuildCore(build_py):
@@ -53,9 +66,9 @@ class CMakeBuildCore(build_py):
         build_dir.mkdir(exist_ok=True)
 
         cmake_args = [
-            f"-DPYTHON_EXECUTABLE={sys.executable}",
-            "-DTF_BUILD_TESTS=OFF",
-            "-DTF_BUILD_PYTHON=OFF",
+            f"-DPython3_EXECUTABLE={sys.executable}",
+            "-DSHIMAENAGA_BUILD_TESTS=OFF",
+            "-DSHIMAENAGA_BUILD_PYTHON=OFF",
             "-DCMAKE_BUILD_TYPE=Release",
         ]
         try:
@@ -70,6 +83,18 @@ class CMakeBuildCore(build_py):
         except subprocess.CalledProcessError as e:
             print(f"WARNING: C++ build failed ({e}). "
                   "Ensure cmake and a C++17 compiler are available.")
+            return
+
+        # Bundle the shared core next to _ctypes_backend.py so _find_lib()
+        # can locate it inside an installed wheel (no system install needed).
+        ext = ".dylib" if sys.platform == "darwin" else (
+            ".dll" if sys.platform == "win32" else ".so"
+        )
+        built = next(build_dir.rglob(f"*shimaenaga_core{ext}"), None)
+        if built is not None:
+            dest_dir = Path(self.build_lib) / "shimaenaga"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(built, dest_dir / built.name)
 
 
 if _has_pybind11():

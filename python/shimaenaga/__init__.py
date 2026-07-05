@@ -9,8 +9,11 @@ from .sklearn_api import (
 )
 
 # Try pybind11 extension first, fall back to ctypes backend.
+# _shimaenaga is a top-level sibling module (built by CMake into python/,
+# alongside this package), not a submodule of shimaenaga -- so it must be
+# imported absolutely, not via a relative "..".
 try:
-    from .._shimaenaga import Dataset, Booster, Config
+    from _shimaenaga import Dataset, Booster, Config
     _backend = "pybind11"
 except ImportError:
     try:

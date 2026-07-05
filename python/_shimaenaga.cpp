@@ -88,13 +88,18 @@ PYBIND11_MODULE(_shimaenaga, m) {
         }
 
         py::gil_scoped_release release;
-        return Dataset::Build(Xp, n, nf, yp, wp, gp, ng, cfg);
+        // Return shared_ptr explicitly (not unique_ptr): the class holder
+        // below is std::shared_ptr<Dataset>, and letting pybind11 convert
+        // a returned unique_ptr into that holder triggers a stack-buffer
+        // overflow in its own init_instance<> machinery on this pybind11
+        // version.
+        return std::shared_ptr<Dataset>(Dataset::Build(Xp, n, nf, yp, wp, gp, ng, cfg));
       },
       py::arg("X"), py::arg("y"),
       py::arg("weights") = py::none(),
       py::arg("groups") = py::none(),
       py::arg("params") = std::map<std::string,std::string>{})
-    .def_static("build_like",
+    .def("build_like",
       [](std::shared_ptr<Dataset> train,
          py::array X_in, py::array y_in,
          py::object weights_in, py::object groups_in) {
@@ -119,11 +124,11 @@ PYBIND11_MODULE(_shimaenaga, m) {
         }
         if ((int)X.shape(1) != train->NumFeatures())
           throw std::invalid_argument(
-              "build_like: X feature count does not match the training dataset");
+              "build_like: X has a different number of features than the training dataset");
         py::gil_scoped_release release;
-        return Dataset::BuildLike(*train, X.data(), n, y.data(), wp, gp, ng);
+        return std::shared_ptr<Dataset>(Dataset::BuildLike(*train, X.data(), n, y.data(), wp, gp, ng));
       },
-      py::arg("train"), py::arg("X"), py::arg("y"),
+      py::arg("X"), py::arg("y"),
       py::arg("weights") = py::none(), py::arg("groups") = py::none())
     .def("num_data",     &Dataset::NumData)
     .def("num_features", &Dataset::NumFeatures);

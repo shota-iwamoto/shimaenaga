@@ -13,7 +13,7 @@ except ImportError:
     class RegressorMixin: pass
 
 try:
-    from .._shimaenaga import Dataset, Booster, Config
+    from _shimaenaga import Dataset, Booster, Config
     _has_cpp = True
 except ImportError:
     try:
