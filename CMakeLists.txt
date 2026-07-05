@@ -11,14 +11,25 @@ option(SHIMAENAGA_BUILD_PYTHON  "Build Python bindings"        ON)
 option(SHIMAENAGA_BUILD_TESTS   "Build unit tests"             ON)
 
 # ─── Compiler flags ───
+# AVX2 is x86-only. Guard on the target architecture: on Apple Silicon (and
+# other ARM) clang *accepts* -mavx2 with only an "unused argument" warning, so
+# CheckCXXCompilerFlag passes and SHIMAENAGA_AVX2 would wrongly get defined --
+# then <immintrin.h> (x86-only) is pulled in and the build fails. simd.h always
+# has a valid scalar/NEON fallback, so ARM simply skips AVX2.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|i[3-6]86|x86)$")
+  set(SHIMAENAGA_ARCH_X86 ON)
+else()
+  set(SHIMAENAGA_ARCH_X86 OFF)
+endif()
+
 if(MSVC)
   add_compile_options(/W4 /O2)
-  if(SHIMAENAGA_USE_AVX2)
+  if(SHIMAENAGA_USE_AVX2 AND SHIMAENAGA_ARCH_X86)
     add_compile_options(/arch:AVX2)
   endif()
 else()
   add_compile_options(-O3 -fno-math-errno -Wall -Wextra -Wno-unused-parameter)
-  if(SHIMAENAGA_USE_AVX2)
+  if(SHIMAENAGA_USE_AVX2 AND SHIMAENAGA_ARCH_X86)
     include(CheckCXXCompilerFlag)
     check_cxx_compiler_flag("-mavx2 -mfma" HAS_AVX2)
     if(HAS_AVX2)
@@ -63,6 +74,11 @@ endif()
 # Static version for tests (no DLL export complexity)
 add_library(shimaenaga_static STATIC ${SHIMAENAGA_SOURCES})
 target_include_directories(shimaenaga_static PUBLIC include src)
+# PUBLIC so it propagates to everything that links the static lib (the
+# _shimaenaga pybind11 module and the test executables): on MSVC this makes
+# SHIMAENAGA_EXPORT expand to nothing instead of dllimport, which is required
+# to link the static lib into a shared module. No effect on non-Windows.
+target_compile_definitions(shimaenaga_static PUBLIC SHIMAENAGA_STATIC_DEFINE)
 # It also gets linked into the _shimaenaga shared module (pybind11
 # extension) on Linux, where a non-PIC static lib can't be linked into a
 # shared object (ld: "relocation ... can not be used when making a shared

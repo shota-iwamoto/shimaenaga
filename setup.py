@@ -24,6 +24,14 @@ class CMakeBuild(build_ext):
     def build_extension(self, ext):
         src_dir = Path(__file__).parent.absolute()
         build_dir = src_dir / "build"
+        # Start from a clean build dir. cibuildwheel builds every CPython
+        # version against the *same* copied source tree on Linux, so a
+        # CMakeCache.txt left behind by the previous interpreter would pin
+        # the wrong Python (and a now-deleted pybind11 overlay), making the
+        # reconfigure a silent no-op that never creates the _shimaenaga
+        # target ("No rule to make target _shimaenaga").
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
         build_dir.mkdir(exist_ok=True)
 
         cmake_args = [
