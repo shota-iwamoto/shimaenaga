@@ -135,7 +135,7 @@ else:
 
 setup(
     name="shimaenaga",
-    version="1.3.0",
+    version="1.3.1",
     description="Shimaenaga: Attentive Histogram GBDT with sample-level token attention",
     long_description=Path("README.md").read_text(encoding="utf-8") if Path("README.md").exists() else "",
     # Without this PyPI/twine parse the Markdown README as reStructuredText
